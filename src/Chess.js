@@ -238,12 +238,11 @@ export default class Chess {
 
     let winner = this.game_over(this.board);
     if (winner !== -1) {
-      alert(`${winner === 0 ? "AI" : "Player " + winner} won!`);
-      return;
+      return winner
     }
-
     // todo: update color of checkpoint when captured?
     this.change_turn();
+    return -1
   }
 
   attack_unit(selected_x, selected_y, i, j) {
@@ -260,11 +259,11 @@ export default class Chess {
 
     let winner = this.game_over(this.board);
     if (winner !== -1) {
-      alert(`${winner === 0 ? "AI" : "Player " + winner} won!`);
-      return;
+      return winner
     }
 
     this.change_turn();
+    return -1
   }
 
   increase_score(points) {
@@ -394,7 +393,7 @@ export default class Chess {
             if (unit.team === this.turn) {
               let dist = Math.abs(x - p) + Math.abs(y - q);
               // todo: better dist function (to capture accurate moves like diagonals)
-              let dist_score = 100 / (dist + 1);
+              let dist_score = unit_score / (5 * (dist + 1));
               checkpoint_proximity_score += parseInt(
                 dist_score + 0.5 * unit_score
               );
@@ -412,17 +411,17 @@ export default class Chess {
       checkpoint_ownership_score +
       checkpoint_proximity_score;
 
-    // if (this.turn === 0)
-    //   console.log(
-    //     "hp_score:",
-    //     hp_score,
-    //     "cost_score:",
-    //     cost_score,
-    //     "checkpoint_ownership_score:",
-    //     checkpoint_ownership_score,
-    //     "checkpoint_proximity_score:",
-    //     checkpoint_proximity_score
-    //   );
+    if (this.turn === 0)
+      console.log(
+        "hp_score:",
+        hp_score,
+        "cost_score:",
+        cost_score,
+        "checkpoint_ownership_score:",
+        checkpoint_ownership_score,
+        "checkpoint_proximity_score:",
+        checkpoint_proximity_score
+      );
 
     return score;
   }

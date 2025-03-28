@@ -4,7 +4,7 @@ import Chess from "./Chess";
 import { Unit } from "./Units";
 
 let size = window.innerWidth > 580 ? 16 : window.innerWidth > 400 ? 12 : 10;
-const chess = new Chess(7);
+const chess = new Chess(size);
 function App() {
   const [moves, setMoves] = useState([]);
   const [attacks, setAttacks] = useState([]);
@@ -13,6 +13,9 @@ function App() {
   const [selected, setSelected] = useState(false);
   const [selectedX, setSelectedX] = useState(0);
   const [selectedY, setSelectedY] = useState(0);
+  const [infoModal, setInfoModal] = useState(false);
+  const [winnerModal, setWinnerModal] = useState(true);
+  const [winner, setWinner] = useState(-1);
 
   useEffect(() => {
     // chess.start(true);
@@ -21,6 +24,56 @@ function App() {
 
   return (
     <div className="App container flex justify-center py-6 gap-12">
+      {infoModal ? (
+        <div className="p-2 fixed z-50 bg-[#1c1c1ca0] left-0 top-0 w-full h-full flex flex-col justify-center items-center">
+          <div className="max-w-full relative bg-amber-200 pt-12 px-10 pb-10 rounded-md w-max">
+            <button
+              onClick={() => setInfoModal(false)}
+              className="bg-red-300 text-white rounded-md w-8 h-8 text-md absolute top-2 right-2"
+            >
+              ❌
+            </button>
+            <h1 className="text-2xl font-bold text-center">📋 Instructions</h1>
+            <br />
+            <p className="text-lg">
+              🔸 The goal is to control all checkpoints OR kill all enemy units
+            </p>
+            <p className="text-lg">
+              🔸 Units have different health, movement, damage and range
+            </p>
+            <p className="text-lg">
+              🔸 Knights and Siege Weapons can move two steps in a move
+            </p>
+            <p className="text-lg">
+              🔸 Mountains act as obstacles but some units can cross it
+            </p>
+          </div>
+        </div>
+      ) : (
+        ""
+      )}
+
+      {winnerModal ? (
+        <div className="p-2 fixed z-50 bg-[#1c1c1ca0] left-0 top-0 w-full h-full flex flex-col justify-center items-center">
+          <div className="max-w-full relative bg-green-300 min-w-[300px] pt-12 px-10 pb-10 rounded-md w-max">
+            <h1 className="text-2xl font-bold text-center">🎉🎉🎉</h1>
+            <br />
+            <h1 className="text-2xl font-bold text-center">
+              {winner === 0 ? "AI" : "Player " + winner} Won!{" "}
+            </h1>
+            <br />
+            <button
+              onClick={() => setWinnerModal(false)}
+              className="bg-green-200 rounded-md w-full text-black p-2 text-md"
+            >
+              ❌ Close
+            </button>
+          </div>
+        </div>
+      ) : (
+        ""
+      )}
+
       <div className="flex flex-col justify-evenly left-div">
         <h1 className="text-4xl font-bold">⚔️ BattleChess</h1>
 
@@ -65,6 +118,8 @@ function App() {
             onClick={() => {
               chess.start(true);
               setBoard(chess.board);
+              setWinnerModal(false)
+              setWinner(-1)
               setMoves([]);
               setAttacks([]);
             }}
@@ -76,13 +131,18 @@ function App() {
             onClick={() => {
               chess.start(false);
               setBoard(chess.board);
+              setWinnerModal(false)
+              setWinner(-1)
               setMoves([]);
               setAttacks([]);
             }}
           >
             🤝 New Game vs Human
           </button>
-          <button className="px-4 py-2 bg-yellow-300 rounded-md">
+          <button
+            className="px-4 py-2 bg-yellow-300 rounded-md"
+            onClick={() => setInfoModal(!infoModal)}
+          >
             📋 Game Rules
           </button>
         </div>
@@ -105,7 +165,13 @@ function App() {
                           chess.move_unit(selectedX, selectedY, i, j);
                           setMoves([]);
                           setAttacks([]);
-                          if (chess.vs_ai) chess.move_ai_turn();
+                          if (chess.vs_ai) {
+                            let w = chess.move_ai_turn();
+                            if (w !== -1) {
+                              setWinner(w);
+                              setWinnerModal(true);
+                            }
+                          }
                           return;
                         } else if (
                           attacks.some(
@@ -116,6 +182,7 @@ function App() {
                           chess.attack_unit(selectedX, selectedY, i, j);
                           setMoves([]);
                           setAttacks([]);
+
                           return;
                         } else {
                           // if clicked elsewhere, hide moves
@@ -127,8 +194,8 @@ function App() {
 
                       if (unit instanceof Unit) {
                         setSelected(true);
-                        setSelectedX(i)
-                        setSelectedY(j)
+                        setSelectedX(i);
+                        setSelectedY(j);
                         let { moves, attacks } = chess.give_actions(i, j);
                         setMoves(moves);
                         setAttacks(attacks);
@@ -165,7 +232,7 @@ function App() {
                           alt={unit.name}
                         />
 
-                        <div className="rounded-b-full w-full h-[4px] bg-red-400 z-50 absolute bottom-[-1px] left-0">
+                        <div className="rounded-b-full w-full h-[4px] bg-red-400 z-30 absolute bottom-[-1px] left-0">
                           <div
                             className={`h-full bg-green-400 w-[${unit.hp}%] rounded-b-full`}
                           ></div>
