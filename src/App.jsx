@@ -98,11 +98,11 @@ function App() {
           <div className="flex justify-between">
             <h1
               className={
-                chess.turn !== 1 ? "text-green-600 italic font-bold" : ""
+                chess.turn === 0 || chess.turn === 2 ? "text-green-600 italic font-bold" : ""
               }
             >
               {chess.vs_ai ? "AI" : "Player 2"}
-              {chess.turn !== 1 ? "*" : ""}
+              {chess.turn === 0 || chess.turn === 2 ? "*" : ""}
             </h1>
             <h1 className="font-bold bg-red-400 rounded-sm text-white px-1">
               {chess.score2}

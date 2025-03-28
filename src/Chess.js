@@ -27,7 +27,7 @@ export default class Chess {
   constructor(size) {
     this.size = size;
     this.board = [];
-    this.turn = 1;
+    this.turn = -1;
     this.vs_ai = true;
     this.checkpoints = [];
     this.score1 = 0;
