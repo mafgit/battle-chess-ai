@@ -22,6 +22,7 @@ export default class Chess {
   checkpoints;
   score1;
   score2;
+  max_depth;
 
   constructor(size) {
     this.size = size;
@@ -31,6 +32,7 @@ export default class Chess {
     this.checkpoints = [];
     this.score1 = 0;
     this.score2 = 0;
+    this.max_depth = 2;
 
     for (let i = 0; i < size; i++) {
       this.board.push(new Array(size).fill(""));
@@ -154,8 +156,8 @@ export default class Chess {
 
   give_actions(x, y) {
     let selected_unit = this.board[x][y];
-    this.selected_x = x;
-    this.selected_y = y;
+    // this.selected_x = x;
+    // this.selected_y = y;
 
     let moves = [];
     let attacks = [];
@@ -206,7 +208,7 @@ export default class Chess {
             this.board[new_x][new_y] === "C"
           ) {
             moves.push([new_x, new_y]);
-          } else if (this.board[new_x][new_y].team !== selected_unit.team) {
+          } else if (this.board[new_x][new_y] instanceof Unit && this.board[new_x][new_y].team !== selected_unit.team) {
             attacks.push([new_x, new_y]);
           }
         }
@@ -216,11 +218,11 @@ export default class Chess {
     return { moves, attacks };
   }
 
-  move_unit(i, j) {
-    this.board[i][j] = this.board[this.selected_x][this.selected_y];
-    this.board[this.selected_x][this.selected_y] = "";
-    this.selected_x = null;
-    this.selected_y = null;
+  move_unit(selected_x, selected_y, i, j) {
+    this.board[i][j] = this.board[selected_x][selected_y];
+    this.board[selected_x][selected_y] = "";
+    // this.selected_x = null;
+    // this.selected_y = null;
 
     for (let index = 0; index < this.checkpoints.length; index++) {
       let [x, y, owner] = this.checkpoints[index];
@@ -234,13 +236,19 @@ export default class Chess {
       }
     }
 
-    // todo: check for game over, etc
-    // todo: update color of checkpoint when captured
+    let winner = this.game_over(this.board);
+    if (winner !== -1) {
+      alert(`${winner === 0 ? "AI" : "Player " + winner} won!`);
+      return;
+    }
+
+    // todo: update color of checkpoint when captured?
     this.change_turn();
   }
 
-  attack_unit(i, j) {
-    let { attack } = this.board[this.selected_x][this.selected_y];
+  attack_unit(selected_x, selected_y, i, j) {
+    // todo: synchronize score points and evaluation scores
+    let { attack } = this.board[selected_x][selected_y];
     this.board[i][j].hp -= attack;
 
     this.increase_score(attack / 10);
@@ -248,6 +256,12 @@ export default class Chess {
     if (this.board[i][j].hp <= 0) {
       this.increase_score(this.board[i][j].get_cost());
       this.board[i][j] = "";
+    }
+
+    let winner = this.game_over(this.board);
+    if (winner !== -1) {
+      alert(`${winner === 0 ? "AI" : "Player " + winner} won!`);
+      return;
     }
 
     this.change_turn();
@@ -261,18 +275,303 @@ export default class Chess {
     }
   }
 
-  evaluate() {
+  game_over(board) {
+    // check 1: or all checkpoints captured by one army
+    // check 2: if all units of one army are dead
+    // todo: or max score reached like 1000?
+
+    // check 1:
+    let checkpoints_owned_by_team1 = 0;
+    let checkpoints_owned_by_team2 = 0;
+
+    for (let i = 0; i < this.checkpoints.length; i++) {
+      let [x, y, owner] = this.checkpoints[i];
+      if (owner === 1) {
+        checkpoints_owned_by_team1++;
+      } else if (owner === 2 || owner === 0) {
+        checkpoints_owned_by_team2++;
+      }
+    }
+
+    if (checkpoints_owned_by_team1 === this.checkpoints.length) {
+      return 1;
+    } else if (checkpoints_owned_by_team2 === this.checkpoints.length) {
+      return this.vs_ai ? 0 : 2;
+    }
+
+    // check 2:
+    let team1_alive = false;
+    let team2_alive = false;
+    for (let i = 0; i < this.size; i++) {
+      for (let j = 0; j < this.size; j++) {
+        let unit = board[i][j];
+        if (unit instanceof Unit) {
+          if (unit.team === 1) {
+            team1_alive = true;
+          } else if (unit.team === 2 || unit.team === 0) {
+            team2_alive = true;
+          }
+        }
+
+        if (team1_alive && team2_alive) {
+          break;
+        }
+      }
+
+      if (team1_alive && team2_alive) {
+        break;
+      }
+    }
+
+    if (team1_alive && !team2_alive) {
+      return 1;
+    } else if (team2_alive && !team1_alive) {
+      return this.vs_ai ? 0 : 2;
+    }
+
+    return -1;
+  }
+
+  evaluate(board) {
+    // returns score for current player
+    // todo: make the evaluation scores and their factors appropriate
+
     /*
     Unit Health: Higher health for the AI's units is good. Lower health for the opponent's units is good.
-    Unit Position: Control of central areas or proximity to checkpoints might be valuable.
     Unit Types: Certain unit types (like Commanders or Siege Weapons) might have higher value.
     Checkpoints: Controlling checkpoints is a very important factor.
-    Distance to enemy commander: try to minimize the distance between the AI units and the enemy commander.
+    Unit Position: Control of central areas or proximity to checkpoints might be valuable.
+    // todo: include morale? (wrt distance from commander or death of commander)
     */
 
     let score = 0;
-    // todo: ...
+    let hp_score = 0;
+    let cost_score = 0;
+    let checkpoint_ownership_score = 0;
+    let checkpoint_proximity_score = 0;
 
-    return score
+    // score if winning position
+    if (this.game_over(board) === this.turn) {
+      score += 10000;
+    }
+
+    // unit health score and unit cost score
+    for (let i = 0; i < this.size; i++) {
+      for (let j = 0; j < this.size; j++) {
+        let unit = board[i][j];
+
+        if (unit instanceof Unit) {
+          if (unit.team === this.turn) {
+            hp_score += unit.hp;
+            cost_score += unit.get_cost();
+          } else {
+            hp_score -= unit.hp;
+            cost_score -= unit.get_cost();
+          }
+        }
+      }
+      // todo: incorporate below loops in this loop
+    }
+
+    // checkpoint ownership score
+    // and checkpoint proximity score
+    for (let i = 0; i < this.checkpoints.length; i++) {
+      let [x, y, owner] = this.checkpoints[i];
+      if (owner === this.turn) {
+        checkpoint_ownership_score += 1000;
+      } else if (owner !== -1) {
+        checkpoint_ownership_score -= 1000;
+      }
+
+      for (let p = 0; p < this.size; p++) {
+        for (let q = 0; q < this.size; q++) {
+          let unit = board[p][q];
+
+          if (unit instanceof Unit) {
+            let unit_score = unit.hp + unit.get_cost();
+            // console.log(unit_score);
+
+            if (unit.team === this.turn) {
+              let dist = Math.abs(x - p) + Math.abs(y - q);
+              // todo: better dist function (to capture accurate moves like diagonals)
+              let dist_score = 100 / (dist + 1);
+              checkpoint_proximity_score += parseInt(
+                dist_score + 0.5 * unit_score
+              );
+            } else {
+              // todo: subtract?
+            }
+          }
+        }
+      }
+    }
+    // todo: ...
+    score +=
+      hp_score +
+      cost_score +
+      checkpoint_ownership_score +
+      checkpoint_proximity_score;
+
+    // if (this.turn === 0)
+    //   console.log(
+    //     "hp_score:",
+    //     hp_score,
+    //     "cost_score:",
+    //     cost_score,
+    //     "checkpoint_ownership_score:",
+    //     checkpoint_ownership_score,
+    //     "checkpoint_proximity_score:",
+    //     checkpoint_proximity_score
+    //   );
+
+    return score;
+  }
+
+  minimax(board_copy, depth, maximizingPlayer) {
+    if (depth === 0 || this.game_over(board_copy) !== -1) {
+      return this.evaluate(board_copy);
+    }
+
+    if (maximizingPlayer) {
+      // AI's turn (maximize)
+      let best_score = -Infinity;
+
+      for (let i = 0; i < this.size; i++) {
+        for (let j = 0; j < this.size; j++) {
+          if (this.board[i][j] instanceof Unit) {
+            let { moves, attacks } = this.give_actions(i, j);
+            // console.log('depth ', depth, ', unit' + [i, j], "moves", moves);
+
+            for (let move of moves) {
+              const board_copy_copy = this.create_board_copy(board_copy);
+
+              let [x, y] = move;
+
+              // move unit
+              board_copy_copy[x][y] = board_copy_copy[i][j];
+              board_copy_copy[i][j] = "";
+
+              //
+              let score = this.minimax(board_copy_copy, depth - 1, false);
+              if (score > best_score) {
+                best_score = score;
+              }
+
+              // undo move
+              board_copy_copy[i][j] = board_copy_copy[x][y];
+              board_copy_copy[x][y] = "";
+            }
+          }
+        }
+      }
+
+      return best_score;
+    } else {
+      // minimize
+      let best_score = Infinity;
+
+      for (let i = 0; i < this.size; i++) {
+        for (let j = 0; j < this.size; j++) {
+          if (this.board[i][j] instanceof Unit) {
+            let { moves, attacks } = this.give_actions(i, j);
+            for (let move of moves) {
+              const board_copy_copy = this.create_board_copy(board_copy);
+              let [x, y] = move;
+
+              // move unit
+              board_copy_copy[x][y] = board_copy_copy[i][j];
+              board_copy_copy[i][j] = "";
+
+              //
+              let score = this.minimax(board_copy_copy, depth - 1, true);
+              if (score < best_score) {
+                best_score = score;
+              }
+
+              // undo move
+              board_copy_copy[i][j] = board_copy_copy[x][y];
+              board_copy_copy[x][y] = "";
+            }
+          }
+        }
+      }
+
+      return best_score;
+    }
+  }
+
+  create_board_copy(board) {
+    return board.map((row) =>
+      row.map((cell) => {
+        if (cell instanceof Unit) {
+          // deep copy for unit instances (to preserve methods)
+          return Object.assign(
+            Object.create(Object.getPrototypeOf(cell)),
+            cell
+          );
+        } else {
+          return cell;
+        }
+      })
+    );
+  }
+
+  move_ai_turn() {
+    let best_action = [null, null];
+    let best_score = -Infinity;
+    let selected_x = null;
+    let selected_y = null;
+
+    for (let i = 0; i < this.size; i++) {
+      for (let j = 0; j < this.size; j++) {
+        if (this.board[i][j] instanceof Unit) {
+          let { moves, attacks } = this.give_actions(i, j);
+          // console.log('unit' + [i, j], "moves", moves);
+          for (let move of moves) {
+            const board_copy = this.create_board_copy(this.board);
+
+            let [x, y] = move;
+
+            // move unit
+            board_copy[x][y] = board_copy[i][j];
+            board_copy[i][j] = "";
+
+            //
+            let score = this.minimax(
+              board_copy,
+              this.max_depth,
+              this.turn === 0
+            );
+            // if ((score > best_score && this.turn === 0) || (score < best_score && this.turn === 1)) {
+            //   // maximize score if AI's turn
+            //   // otherwise minimize score
+            //   best_score = score;
+            //   best_action = [i, j];
+            // }
+
+            if (score > best_score) {
+              // this.selected_x = i;
+              // this.selected_y = j;
+              selected_x = i;
+              selected_y = j;
+              best_score = score;
+              best_action[0] = x;
+              best_action[1] = y;
+            }
+
+            // undo move
+            board_copy[i][j] = board_copy[x][y];
+            board_copy[x][y] = "";
+          }
+
+          // todo: do same for attacks
+        }
+      }
+    }
+
+    // console.log([this.selected_x, this.selected_y], best_action);
+    // console.log([selected_x, selected_y], best_action);
+
+    this.move_unit(selected_x, selected_y, best_action[0], best_action[1]);
   }
 }

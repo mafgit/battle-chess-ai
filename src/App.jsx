@@ -11,6 +11,8 @@ function App() {
   // const [chess, setChess] = useState(new Chess(7));
   const [board, setBoard] = useState(chess.board);
   const [selected, setSelected] = useState(false);
+  const [selectedX, setSelectedX] = useState(0);
+  const [selectedY, setSelectedY] = useState(0);
 
   useEffect(() => {
     // chess.start(true);
@@ -100,31 +102,36 @@ function App() {
                         if (
                           moves.some((move) => move[0] === i && move[1] === j)
                         ) {
-                          chess.move_unit(i, j);
+                          chess.move_unit(selectedX, selectedY, i, j);
                           setMoves([]);
                           setAttacks([]);
+                          if (chess.vs_ai) chess.move_ai_turn();
                           return;
                         } else if (
                           attacks.some(
                             (attack) => attack[0] === i && attack[1] === j
                           )
                         ) {
-                          chess.attack_unit(i, j);
+                          // if clicked on valid attack
+                          chess.attack_unit(selectedX, selectedY, i, j);
                           setMoves([]);
                           setAttacks([]);
                           return;
                         } else {
-                          // hide moves
+                          // if clicked elsewhere, hide moves
                           setMoves([]);
                           setAttacks([]);
+                          setSelected(false);
                         }
                       }
 
                       if (unit instanceof Unit) {
+                        setSelected(true);
+                        setSelectedX(i)
+                        setSelectedY(j)
                         let { moves, attacks } = chess.give_actions(i, j);
                         setMoves(moves);
                         setAttacks(attacks);
-                        setSelected(true);
                       }
                     }}
                     className={
