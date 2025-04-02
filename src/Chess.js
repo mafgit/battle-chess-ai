@@ -32,7 +32,7 @@ export default class Chess {
     this.checkpoints = [];
     this.score1 = 0;
     this.score2 = 0;
-    this.max_depth = 2;
+    this.max_depth = 3;
 
     for (let i = 0; i < size; i++) {
       this.board.push(new Array(size).fill(""));
@@ -343,7 +343,7 @@ export default class Chess {
     // todo: include morale? (wrt distance from commander or death of commander)
     */
 
-    let score = 0;
+    let winning_score = 0;
     let hp_score = 0;
     let cost_score = 0;
     let checkpoint_ownership_score = 0;
@@ -351,7 +351,7 @@ export default class Chess {
 
     // score if winning position
     if (this.game_over(board) === this.turn) {
-      score += 10000;
+      winning_score += 10000;
     }
 
     // unit health score and unit cost score
@@ -376,10 +376,19 @@ export default class Chess {
     // and checkpoint proximity score
     for (let i = 0; i < this.checkpoints.length; i++) {
       let [x, y, owner] = this.checkpoints[i];
+      
+      let checkpoint_importance = 0;
       if (owner === this.turn) {
+        checkpoint_importance = 1
         checkpoint_ownership_score += 1000;
-      } else if (owner !== -1) {
-        checkpoint_ownership_score -= 1000;
+      } else {
+        if (owner === -1) { // no one is owner
+          checkpoint_importance = 3
+          checkpoint_ownership_score -= 1000;
+        } else { // enemy is owner
+          checkpoint_importance = 4
+          checkpoint_ownership_score -= 1500;
+        }
       }
 
       for (let p = 0; p < this.size; p++) {
@@ -390,22 +399,24 @@ export default class Chess {
             let unit_score = unit.hp + unit.get_cost();
             // console.log(unit_score);
 
+            let dist = Math.max(Math.abs(x - p), Math.abs(y - q)) // chebychev's distance to capture diagonals too
+            let dist_score = unit_score * checkpoint_importance / ((dist + 1) * (dist + 1));
             if (unit.team === this.turn) {
-              let dist = Math.abs(x - p) + Math.abs(y - q);
-              // todo: better dist function (to capture accurate moves like diagonals)
-              let dist_score = unit_score / (5 * (dist + 1));
+              // let dist_score = unit_score * Math.exp(-0.5 * dist);
               checkpoint_proximity_score += parseInt(
                 dist_score + 0.5 * unit_score
               );
             } else {
-              // todo: subtract?
+              checkpoint_proximity_score -= parseInt(
+                dist_score + 0.5 * unit_score
+              );
             }
           }
         }
       }
     }
     // todo: ...
-    score +=
+    let score =
       hp_score +
       cost_score +
       checkpoint_ownership_score +
@@ -571,6 +582,6 @@ export default class Chess {
     // console.log([this.selected_x, this.selected_y], best_action);
     // console.log([selected_x, selected_y], best_action);
 
-    this.move_unit(selected_x, selected_y, best_action[0], best_action[1]);
+    return this.move_unit(selected_x, selected_y, best_action[0], best_action[1]);
   }
 }

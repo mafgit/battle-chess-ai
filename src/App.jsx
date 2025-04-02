@@ -4,7 +4,7 @@ import Chess from "./Chess";
 import { Unit } from "./Units";
 
 let size = window.innerWidth > 580 ? 16 : window.innerWidth > 400 ? 12 : 10;
-const chess = new Chess(size);
+const chess = new Chess(7);
 function App() {
   const [moves, setMoves] = useState([]);
   const [attacks, setAttacks] = useState([]);
@@ -14,7 +14,7 @@ function App() {
   const [selectedX, setSelectedX] = useState(0);
   const [selectedY, setSelectedY] = useState(0);
   const [infoModal, setInfoModal] = useState(false);
-  const [winnerModal, setWinnerModal] = useState(true);
+  const [winnerModal, setWinnerModal] = useState(false);
   const [winner, setWinner] = useState(-1);
 
   useEffect(() => {
