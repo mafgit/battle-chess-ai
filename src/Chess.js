@@ -24,18 +24,48 @@ export default class Chess {
   score2;
   max_depth;
 
-  constructor(size) {
-    this.size = size;
-    this.board = [];
-    this.turn = -1;
-    this.vs_ai = true;
-    this.checkpoints = [];
-    this.score1 = 0;
-    this.score2 = 0;
-    this.max_depth = 3;
+  constructor(
+    size,
+    copy = false,
+    board = [],
+    vs_ai = false,
+    turn = -1,
+    score1 = 0,
+    score2 = 0,
+    checkpoints = [],
+    max_depth = 3
+  ) {
+    if (!copy) {
+      this.size = size;
+      this.board = [];
+      this.turn = -1;
+      this.vs_ai = true;
+      this.checkpoints = [];
+      this.score1 = 0;
+      this.score2 = 0;
+      this.max_depth = 3;
 
-    for (let i = 0; i < size; i++) {
-      this.board.push(new Array(size).fill(""));
+      for (let i = 0; i < size; i++) {
+        this.board.push(new Array(size).fill(""));
+      }
+    } else {
+      this.size = size;
+      this.board = board;
+      // board.forEach((row, i) => {
+      //   row.forEach((unit, j) => {
+      //     if (unit instanceof Unit) {
+      //       console.log(unit);
+      //       console.log(unit.hp);
+      //       console.log(unit.get_cost());
+      //     }
+      //   });
+      // });
+      this.turn = turn;
+      this.vs_ai = vs_ai;
+      this.checkpoints = checkpoints;
+      this.score1 = score1;
+      this.score2 = score2;
+      this.max_depth = max_depth;
     }
   }
 
@@ -118,7 +148,7 @@ export default class Chess {
         y = getRandomInt(0, this.size - 1);
       }
 
-      this.board[x][y] = "C";
+      // this.board[x][y] = "C";
       this.checkpoints.push([x, y, -1]);
     }
 
@@ -208,7 +238,10 @@ export default class Chess {
             this.board[new_x][new_y] === "C"
           ) {
             moves.push([new_x, new_y]);
-          } else if (this.board[new_x][new_y] instanceof Unit && this.board[new_x][new_y].team !== selected_unit.team) {
+          } else if (
+            this.board[new_x][new_y] instanceof Unit &&
+            this.board[new_x][new_y].team !== selected_unit.team
+          ) {
             attacks.push([new_x, new_y]);
           }
         }
@@ -238,11 +271,11 @@ export default class Chess {
 
     let winner = this.game_over(this.board);
     if (winner !== -1) {
-      return winner
+      return winner;
     }
     // todo: update color of checkpoint when captured?
     this.change_turn();
-    return -1
+    return -1;
   }
 
   attack_unit(selected_x, selected_y, i, j) {
@@ -259,11 +292,11 @@ export default class Chess {
 
     let winner = this.game_over(this.board);
     if (winner !== -1) {
-      return winner
+      return winner;
     }
 
     this.change_turn();
-    return -1
+    return -1;
   }
 
   increase_score(points) {
@@ -376,17 +409,19 @@ export default class Chess {
     // and checkpoint proximity score
     for (let i = 0; i < this.checkpoints.length; i++) {
       let [x, y, owner] = this.checkpoints[i];
-      
+
       let checkpoint_importance = 0;
       if (owner === this.turn) {
-        checkpoint_importance = 1
+        checkpoint_importance = 1;
         checkpoint_ownership_score += 1000;
       } else {
-        if (owner === -1) { // no one is owner
-          checkpoint_importance = 3
+        if (owner === -1) {
+          // no one is owner
+          checkpoint_importance = 3;
           checkpoint_ownership_score -= 1000;
-        } else { // enemy is owner
-          checkpoint_importance = 4
+        } else {
+          // enemy is owner
+          checkpoint_importance = 4;
           checkpoint_ownership_score -= 1500;
         }
       }
@@ -399,8 +434,9 @@ export default class Chess {
             let unit_score = unit.hp + unit.get_cost();
             // console.log(unit_score);
 
-            let dist = Math.max(Math.abs(x - p), Math.abs(y - q)) // chebychev's distance to capture diagonals too
-            let dist_score = unit_score * checkpoint_importance / ((dist + 1) * (dist + 1));
+            let dist = Math.max(Math.abs(x - p), Math.abs(y - q)); // chebychev's distance to capture diagonals too
+            let dist_score =
+              (unit_score * checkpoint_importance) / ((dist + 1) * (dist + 1));
             if (unit.team === this.turn) {
               // let dist_score = unit_score * Math.exp(-0.5 * dist);
               checkpoint_proximity_score += parseInt(
@@ -422,17 +458,17 @@ export default class Chess {
       checkpoint_ownership_score +
       checkpoint_proximity_score;
 
-    if (this.turn === 0)
-      console.log(
-        "hp_score:",
-        hp_score,
-        "cost_score:",
-        cost_score,
-        "checkpoint_ownership_score:",
-        checkpoint_ownership_score,
-        "checkpoint_proximity_score:",
-        checkpoint_proximity_score
-      );
+    // if (this.turn === 0)
+    //   console.log(
+    //     "hp_score:",
+    //     hp_score,
+    //     "cost_score:",
+    //     cost_score,
+    //     "checkpoint_ownership_score:",
+    //     checkpoint_owners hip_score,
+    //     "checkpoint_proximity_score:",
+    //     checkpoint_proximity_score
+    //   );
 
     return score;
   }
@@ -582,6 +618,11 @@ export default class Chess {
     // console.log([this.selected_x, this.selected_y], best_action);
     // console.log([selected_x, selected_y], best_action);
 
-    return this.move_unit(selected_x, selected_y, best_action[0], best_action[1]);
+    return this.move_unit(
+      selected_x,
+      selected_y,
+      best_action[0],
+      best_action[1]
+    );
   }
 }

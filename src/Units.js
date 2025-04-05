@@ -5,20 +5,32 @@ export class Unit {
   team;
   name;
   movement;
-  max_hp
+  max_hp;
 
-  constructor(team) {
-    this.max_hp = 100;
-    this.hp = 100; // todo: implement healer in frontend
-    this.attack = 50;
-    this.range = 1;
-    this.team = team; // 1 and 2 for players, 0 for AI
-    this.name = "Unit";
-    this.movement = 1;
+  constructor(team, copy = false, copy_obj = {}) {
+    if (!copy) {
+      this.max_hp = 100;
+      this.hp = 100; // todo: implement healer in frontend
+      this.attack = 50;
+      this.range = 1;
+      this.team = team; // 1 and 2 for players, 0 for AI
+      this.name = "Unit";
+      this.movement = 1;
+    } else {
+      this.max_hp = copy_obj.max_hp;
+      this.hp = copy_obj.hp;
+      this.attack = copy_obj.attack;
+      this.range = copy_obj.range;
+      this.team = copy_obj.team;
+      this.name = copy_obj.name;
+      this.movement = copy_obj.movement;
+    }
   }
 
   get_cost() {
-    return this.attack / 10 + this.max_hp / 10 + (this.range * 10) + (this.movement * 10);
+    return (
+      this.attack / 10 + this.max_hp / 10 + this.range * 10 + this.movement * 10
+    );
   }
 }
 

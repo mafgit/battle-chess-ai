@@ -3,12 +3,27 @@ import "./App.css";
 import Chess from "./Chess";
 import { Unit } from "./Units";
 
+const worker = new Worker(new URL("./worker.js", import.meta.url), {
+  type: "module",
+});
+
+
+const copyBoard = (board) => {
+  return board.map((row) =>
+    row.map((cell) => {
+      if (cell !== "" && cell !== "O") return new Unit(cell.team, true, cell);
+      else return cell;
+    })
+  ); // adding marker
+};
+
+
 let size = window.innerWidth > 580 ? 16 : window.innerWidth > 400 ? 12 : 10;
-const chess = new Chess(7);
+// const chess = new Chess(7);
 function App() {
   const [moves, setMoves] = useState([]);
   const [attacks, setAttacks] = useState([]);
-  // const [chess, setChess] = useState(new Chess(7));
+  const [chess, setChess] = useState(new Chess(7));
   const [board, setBoard] = useState(chess.board);
   const [selected, setSelected] = useState(false);
   const [selectedX, setSelectedX] = useState(0);
@@ -16,14 +31,29 @@ function App() {
   const [infoModal, setInfoModal] = useState(false);
   const [winnerModal, setWinnerModal] = useState(false);
   const [winner, setWinner] = useState(-1);
+  const [AIThinking, setAIThinking] = useState(false);
 
   useEffect(() => {
-    // chess.start(true);
-    setBoard(chess.board);
-  }, []);
+    worker.onmessage = (e) => {
+      let { w, board: newBoard, turn, score1, score2, checkpoints } = e.data;
+      if (w !== -1) {
+        setWinner(w);
+        setWinnerModal(true);
+      }
+      
+      setBoard(copyBoard(newBoard));
+      chess.board = copyBoard(newBoard);
+      chess.turn = turn;
+      chess.score1 = score1;
+      chess.score2 = score2;
+      chess.checkpoints = checkpoints;
+      setAIThinking(false);
+    };
+  }, [board]);
 
   return (
     <div className="App container flex justify-center py-6 gap-12">
+      {AIThinking && "AI Thinking..."}
       {infoModal ? (
         <div className="p-2 fixed z-50 bg-[#1c1c1ca0] left-0 top-0 w-full h-full flex flex-col justify-center items-center">
           <div className="max-w-full relative bg-amber-200 pt-12 px-10 pb-10 rounded-md w-max">
@@ -98,7 +128,9 @@ function App() {
           <div className="flex justify-between">
             <h1
               className={
-                chess.turn === 0 || chess.turn === 2 ? "text-green-600 italic font-bold" : ""
+                chess.turn === 0 || chess.turn === 2
+                  ? "text-green-600 italic font-bold"
+                  : ""
               }
             >
               {chess.vs_ai ? "AI" : "Player 2"}
@@ -118,8 +150,8 @@ function App() {
             onClick={() => {
               chess.start(true);
               setBoard(chess.board);
-              setWinnerModal(false)
-              setWinner(-1)
+              setWinnerModal(false);
+              setWinner(-1);
               setMoves([]);
               setAttacks([]);
             }}
@@ -131,8 +163,8 @@ function App() {
             onClick={() => {
               chess.start(false);
               setBoard(chess.board);
-              setWinnerModal(false)
-              setWinner(-1)
+              setWinnerModal(false);
+              setWinner(-1);
               setMoves([]);
               setAttacks([]);
             }}
@@ -163,14 +195,21 @@ function App() {
                           moves.some((move) => move[0] === i && move[1] === j)
                         ) {
                           chess.move_unit(selectedX, selectedY, i, j);
+                          setBoard(chess.board);
                           setMoves([]);
                           setAttacks([]);
                           if (chess.vs_ai) {
-                            let w = chess.move_ai_turn();
-                            if (w !== -1) {
-                              setWinner(w);
-                              setWinnerModal(true);
-                            }
+                            setAIThinking(true);
+                            worker.postMessage({
+                              board: chess.board,
+                              size: chess.size,
+                              vs_ai: chess.vs_ai,
+                              turn: chess.turn,
+                              score1: chess.score1,
+                              score2: chess.score2,
+                              checkpoints: chess.checkpoints,
+                              max_depth: chess.max_depth,
+                            });
                           }
                           return;
                         } else if (
@@ -180,6 +219,7 @@ function App() {
                         ) {
                           // if clicked on valid attack
                           chess.attack_unit(selectedX, selectedY, i, j);
+                          setBoard(chess.board);
                           setMoves([]);
                           setAttacks([]);
 
