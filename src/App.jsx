@@ -8,7 +8,6 @@ const chess = new Chess(7);
 function App() {
   const [moves, setMoves] = useState([]);
   const [attacks, setAttacks] = useState([]);
-  // const [chess, setChess] = useState(new Chess(7));
   const [board, setBoard] = useState(chess.board);
   const [selected, setSelected] = useState(false);
   const [selectedX, setSelectedX] = useState(0);
@@ -18,7 +17,6 @@ function App() {
   const [winner, setWinner] = useState(-1);
 
   useEffect(() => {
-    // chess.start(true);
     setBoard(chess.board);
   }, []);
 
@@ -163,10 +161,12 @@ function App() {
                           moves.some((move) => move[0] === i && move[1] === j)
                         ) {
                           chess.move_unit(selectedX, selectedY, i, j);
+                          setBoard([...chess.board]); // Add this line to force re-render
                           setMoves([]);
                           setAttacks([]);
                           if (chess.vs_ai) {
                             let w = chess.move_ai_turn();
+                            setBoard([...chess.board]); // Add this line to force re-render
                             if (w !== -1) {
                               setWinner(w);
                               setWinnerModal(true);
@@ -180,9 +180,17 @@ function App() {
                         ) {
                           // if clicked on valid attack
                           chess.attack_unit(selectedX, selectedY, i, j);
+                          setBoard([...chess.board]); // Add this line to force re-render
                           setMoves([]);
                           setAttacks([]);
-
+                          if (chess.vs_ai) {
+                            let w = chess.move_ai_turn();
+                            setBoard([...chess.board]); // Add this line to force re-render
+                            if (w !== -1) {
+                              setWinner(w);
+                              setWinnerModal(true);
+                            }
+                          }
                           return;
                         } else {
                           // if clicked elsewhere, hide moves
@@ -206,8 +214,8 @@ function App() {
                       (!(unit instanceof Unit)
                         ? "border-gray-400"
                         : unit.team === 1
-                        ? "border-blue-400"
-                        : "border-red-400")
+                          ? "border-blue-400"
+                          : "border-red-400")
                     }
                   >
                     {unit instanceof Unit ? (
@@ -220,21 +228,22 @@ function App() {
                           src={
                             unit.name +
                             (unit.name === "SiegeWeapon" ||
-                            unit.name === "Commander"
+                              unit.name === "Commander"
                               ? ".webp"
                               : unit.name === "Archer" ||
                                 unit.name === "Healer" ||
                                 unit.name === "Knight" ||
                                 unit.name === "Knight"
-                              ? ".jpg"
-                              : ".png")
+                                ? ".jpg"
+                                : ".png")
                           }
                           alt={unit.name}
                         />
 
-                        <div className="rounded-b-full w-full h-[4px] bg-red-400 z-30 absolute bottom-[-1px] left-0">
+                        <div className="rounded-b-full w-full h-[4px] bg-red-400 z-30 absolute bottom-[-1px] left-0 right-0">
                           <div
-                            className={`h-full bg-green-400 w-[${unit.hp}%] rounded-b-full`}
+                            style={{ width: `${unit.hp}%` }}
+                            className="h-full bg-green-400 rounded-b-full"
                           ></div>
                         </div>
 

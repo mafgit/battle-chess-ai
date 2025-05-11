@@ -138,31 +138,26 @@ export default class Chess {
     }
   }
 
-  change_turn() {
+change_turn() {
     if (!this.vs_ai) {
-      if (this.turn === 1) {
-        this.turn = 2;
-      } else {
-        this.turn = 1;
-      }
+        // For human vs human (teams 1 and 2)
+        this.turn = (this.turn === 1) ? 2 : 1;
     } else {
-      if (this.turn === 1) {
-        this.turn = 0;
-      } else {
-        this.turn = 1;
-      }
+        // For human vs AI (teams 1 and 0)
+        // Keep human as team 1 (blue) and AI as team 0 (red)
+        this.turn = (this.turn === 1) ? 0 : 1;
     }
-  }
+}
 
-  give_actions(x, y) {
-    let selected_unit = this.board[x][y];
+  give_actions(x, y,board_copy=this.board, turn=this.turn) {
+    let selected_unit = board_copy[x][y];
     // this.selected_x = x;
     // this.selected_y = y;
 
     let moves = [];
     let attacks = [];
 
-    if (selected_unit.team === this.turn) {
+    if (selected_unit.team === turn) {
       let arr = [0];
       for (let i = 1; i <= selected_unit.movement; i++) {
         arr.push(i);
@@ -245,16 +240,16 @@ export default class Chess {
     return -1
   }
 
-  attack_unit(selected_x, selected_y, i, j) {
+  attack_unit(fromx, fromy, selected_x, selected_y) {
     // todo: synchronize score points and evaluation scores
-    let { attack } = this.board[selected_x][selected_y];
-    this.board[i][j].hp -= attack;
+    let { attack } = this.board[fromx][fromy];
+    this.board[selected_x][selected_y].hp -= attack;
 
-    this.increase_score(attack / 10);
+    this.increase_score(attack);
 
-    if (this.board[i][j].hp <= 0) {
-      this.increase_score(this.board[i][j].get_cost());
-      this.board[i][j] = "";
+    if (this.board[selected_x][selected_y].hp <= 0) {
+      
+      this.board[selected_x][selected_y] = "";
     }
 
     let winner = this.game_over(this.board);
@@ -331,7 +326,7 @@ export default class Chess {
     return -1;
   }
 
-  evaluate(board) {
+  evaluate(chess, turn = this.turn) {
     // returns score for current player
     // todo: make the evaluation scores and their factors appropriate
 
@@ -347,17 +342,18 @@ export default class Chess {
     let hp_score = 0;
     let cost_score = 0;
     let checkpoint_ownership_score = 0;
-    let checkpoint_proximity_score = 0;
+    let checkpoint_proximity_score
+     = 0;
 
     // score if winning position
-    if (this.game_over(board) === this.turn) {
+    if (chess.game_over(chess.board) === turn) {
       winning_score += 10000;
     }
 
     // unit health score and unit cost score
     for (let i = 0; i < this.size; i++) {
       for (let j = 0; j < this.size; j++) {
-        let unit = board[i][j];
+        let unit = chess.board[i][j];
 
         if (unit instanceof Unit) {
           if (unit.team === this.turn) {
@@ -374,8 +370,8 @@ export default class Chess {
 
     // checkpoint ownership score
     // and checkpoint proximity score
-    for (let i = 0; i < this.checkpoints.length; i++) {
-      let [x, y, owner] = this.checkpoints[i];
+    for (let i = 0; i < chess.checkpoints.length; i++) {
+      let [x, y, owner] = chess.checkpoints[i];
       
       let checkpoint_importance = 0;
       if (owner === this.turn) {
@@ -393,7 +389,7 @@ export default class Chess {
 
       for (let p = 0; p < this.size; p++) {
         for (let q = 0; q < this.size; q++) {
-          let unit = board[p][q];
+          let unit = chess.board[p][q];
 
           if (unit instanceof Unit) {
             let unit_score = unit.hp + unit.get_cost();
@@ -422,99 +418,104 @@ export default class Chess {
       checkpoint_ownership_score +
       checkpoint_proximity_score;
 
-    if (this.turn === 0)
-      console.log(
-        "hp_score:",
-        hp_score,
-        "cost_score:",
-        cost_score,
-        "checkpoint_ownership_score:",
-        checkpoint_ownership_score,
-        "checkpoint_proximity_score:",
-        checkpoint_proximity_score
-      );
+    // if (this.turn === 0)
+    //   console.log(
+    //     "hp_score:",
+    //     hp_score,
+    //     "cost_score:",
+    //     cost_score,
+    //     "checkpoint_ownership_score:",
+    //     checkpoint_ownership_score,
+    //     "checkpoint_proximity_score:",
+    //     checkpoint_proximity_score
+    //   );
 
     return score;
   }
 
-  minimax(board_copy, depth, maximizingPlayer) {
-    if (depth === 0 || this.game_over(board_copy) !== -1) {
-      return this.evaluate(board_copy);
-    }
+alpha_beta_pruning(board_copy, depth, isMaximizing, alpha = -Infinity, beta = Infinity) {
+  if (depth === 0 || this.game_over(board_copy.board) !== -1) {
+    return this.evaluate(board_copy, isMaximizing);
+  }
+  
+  let bestScore = isMaximizing ? -Infinity : Infinity;
+  let best_move = null;
+  let current_team = isMaximizing ? 0 : 1;
+  
+  prune_loop:
+  for (let i = 0; i < this.size; i++) {
+    for (let j = 0; j < this.size; j++) {
+      const unit = board_copy.board[i][j];
+      if (!(unit instanceof Unit) || unit.team !== current_team) continue;
+      
+      const { moves, attacks } = this.give_actions(i, j, board_copy.board, current_team);
+      
+      // Try all valid moves
+      for (let [x, y] of moves) {
+        const newChess = this.create_chess_copy(board_copy.board);
+        newChess.board[x][y] = newChess.board[i][j];
+        newChess.board[i][j] = "";
+        
+        const score = this.alpha_beta_pruning(newChess, depth - 1, !isMaximizing, alpha, beta);
+        
+        if (isMaximizing) {
+          if(depth == this.max_depth && score > bestScore)
+            best_move = {from:{fromX: i, fromY: j}, to:{toX:x, toY:y}, isAttack:false}
 
-    if (maximizingPlayer) {
-      // AI's turn (maximize)
-      let best_score = -Infinity;
-
-      for (let i = 0; i < this.size; i++) {
-        for (let j = 0; j < this.size; j++) {
-          if (this.board[i][j] instanceof Unit) {
-            let { moves, attacks } = this.give_actions(i, j);
-            // console.log('depth ', depth, ', unit' + [i, j], "moves", moves);
-
-            for (let move of moves) {
-              const board_copy_copy = this.create_board_copy(board_copy);
-
-              let [x, y] = move;
-
-              // move unit
-              board_copy_copy[x][y] = board_copy_copy[i][j];
-              board_copy_copy[i][j] = "";
-
-              //
-              let score = this.minimax(board_copy_copy, depth - 1, false);
-              if (score > best_score) {
-                best_score = score;
-              }
-
-              // undo move
-              board_copy_copy[i][j] = board_copy_copy[x][y];
-              board_copy_copy[x][y] = "";
-            }
+          bestScore = Math.max(bestScore, score);
+          alpha = Math.max(alpha, score);
+        } else {
+          bestScore = Math.min(bestScore, score);
+          beta = Math.min(beta, score);
+        }
+        
+        if (beta <= alpha) break prune_loop;
+      }
+      
+      for (let [x, y] of attacks) {
+        const newChess = this.create_chess_copy(board_copy.board);
+        const attacker = newChess.board[i][j];
+        const target = newChess.board[x][y];
+        
+        if (target instanceof Unit) {
+          target.hp -= attacker.attack;
+          if (target.hp <= 0) {
+            newChess.board[x][y] = "";
           }
         }
-      }
+        
+        const score = this.alpha_beta_pruning(newChess, depth - 1, !isMaximizing, alpha, beta);
+        
+        if (isMaximizing) {
+          if(depth == this.max_depth && score > bestScore)
+            best_move = {from:{fromX: i, fromY: j}, to:{toX:x, toY:y}, isAttack:true}
 
-      return best_score;
-    } else {
-      // minimize
-      let best_score = Infinity;
-
-      for (let i = 0; i < this.size; i++) {
-        for (let j = 0; j < this.size; j++) {
-          if (this.board[i][j] instanceof Unit) {
-            let { moves, attacks } = this.give_actions(i, j);
-            for (let move of moves) {
-              const board_copy_copy = this.create_board_copy(board_copy);
-              let [x, y] = move;
-
-              // move unit
-              board_copy_copy[x][y] = board_copy_copy[i][j];
-              board_copy_copy[i][j] = "";
-
-              //
-              let score = this.minimax(board_copy_copy, depth - 1, true);
-              if (score < best_score) {
-                best_score = score;
-              }
-
-              // undo move
-              board_copy_copy[i][j] = board_copy_copy[x][y];
-              board_copy_copy[x][y] = "";
-            }
-          }
+          bestScore = Math.max(bestScore, score);
+          alpha = Math.max(alpha, score);
+        } else {
+          bestScore = Math.min(bestScore, score);
+          beta = Math.min(beta, score);
         }
+        
+        if (beta <= alpha) break prune_loop;
       }
-
-      return best_score;
     }
   }
+  
+  if(depth == this.max_depth) {
+    return best_move;
+  }
+  return bestScore;
+}
 
-  create_board_copy(board) {
-    return board.map((row) =>
+create_chess_copy(board) {
+    // Create deep copy of checkpoints
+    const checkpoints_copy = this.checkpoints.map(checkpoint => [...checkpoint]);
+    
+    // Create deep copy of board
+    const board_copy = board.map((row) =>
       row.map((cell) => {
         if (cell instanceof Unit) {
-          // deep copy for unit instances (to preserve methods)
           return Object.assign(
             Object.create(Object.getPrototypeOf(cell)),
             cell
@@ -524,64 +525,33 @@ export default class Chess {
         }
       })
     );
+
+    // Create a new Chess instance for the copy
+    const chess_copy = new Chess(this.size);
+    chess_copy.board = board_copy;
+    chess_copy.checkpoints = checkpoints_copy;
+    chess_copy.turn = this.turn;
+    chess_copy.vs_ai = this.vs_ai;
+    chess_copy.score1 = this.score1;
+    chess_copy.score2 = this.score2;
+    chess_copy.max_depth = this.max_depth;
+
+    return chess_copy;
+}
+
+move_ai_turn() {
+  const chessCopy = this.create_chess_copy(this.board);
+  let bestMove = this.alpha_beta_pruning(chessCopy, this.max_depth, true);
+  if (!bestMove) return false;
+
+  const {fromX, fromY} = bestMove.from;
+  const {toX, toY} = bestMove.to;
+
+  if (bestMove.isAttack) {
+    return this.attack_unit(fromX, fromY, toX, toY); 
+  } else {
+    return this.move_unit(fromX, fromY, toX, toY);
   }
+}
 
-  move_ai_turn() {
-    let best_action = [null, null];
-    let best_score = -Infinity;
-    let selected_x = null;
-    let selected_y = null;
-
-    for (let i = 0; i < this.size; i++) {
-      for (let j = 0; j < this.size; j++) {
-        if (this.board[i][j] instanceof Unit) {
-          let { moves, attacks } = this.give_actions(i, j);
-          // console.log('unit' + [i, j], "moves", moves);
-          for (let move of moves) {
-            const board_copy = this.create_board_copy(this.board);
-
-            let [x, y] = move;
-
-            // move unit
-            board_copy[x][y] = board_copy[i][j];
-            board_copy[i][j] = "";
-
-            //
-            let score = this.minimax(
-              board_copy,
-              this.max_depth,
-              this.turn === 0
-            );
-            // if ((score > best_score && this.turn === 0) || (score < best_score && this.turn === 1)) {
-            //   // maximize score if AI's turn
-            //   // otherwise minimize score
-            //   best_score = score;
-            //   best_action = [i, j];
-            // }
-
-            if (score > best_score) {
-              // this.selected_x = i;
-              // this.selected_y = j;
-              selected_x = i;
-              selected_y = j;
-              best_score = score;
-              best_action[0] = x;
-              best_action[1] = y;
-            }
-
-            // undo move
-            board_copy[i][j] = board_copy[x][y];
-            board_copy[x][y] = "";
-          }
-
-          // todo: do same for attacks
-        }
-      }
-    }
-
-    // console.log([this.selected_x, this.selected_y], best_action);
-    // console.log([selected_x, selected_y], best_action);
-
-    return this.move_unit(selected_x, selected_y, best_action[0], best_action[1]);
-  }
 }
