@@ -242,7 +242,7 @@ function App() {
 
                         <div className="rounded-b-full w-full h-[4px] bg-red-400 z-30 absolute bottom-[-1px] left-0 right-0">
                           <div
-                            style={{ width: `${unit.hp}%` }}
+                            style={{ width: `${parseInt(unit.hp * 100 / unit.max_hp)}%` }}
                             className="h-full bg-green-400 rounded-b-full"
                           ></div>
                         </div>

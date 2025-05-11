@@ -9,7 +9,7 @@ export class Unit {
 
   constructor(team) {
     this.max_hp = 100;
-    this.hp = 100; // todo: implement healer in frontend
+    this.hp = 100;
     this.attack = 50;
     this.range = 1;
     this.team = team; // 1 and 2 for players, 0 for AI
@@ -73,6 +73,7 @@ export class Healer extends Unit {
     this.name = "Healer";
     this.max_hp = 100;
     this.hp = this.max_hp;
+    this.heal = 35
   }
 }
 

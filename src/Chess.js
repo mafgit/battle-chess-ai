@@ -53,7 +53,7 @@ export default class Chess {
 
     // initialize armies
     this.board[0][0] = new SiegeWeapon(1, 0, 0);
-    this.board[1][1] = new Healer(1, 1, 1);
+    this.board[1][1] = new SiegeWeapon(1, 1, 1);
     this.board[0][1] = new Archer(1, 0, 1);
     this.board[1][0] = new Archer(1, 1, 0);
     this.board[0][2] = new Knight(1, 0, 2);
@@ -67,11 +67,13 @@ export default class Chess {
       this.size - 1,
       this.size - 1
     );
-    this.board[this.size - 2][this.size - 2] = new Healer(
+    
+    this.board[this.size - 2][this.size - 2] = new SiegeWeapon(
       vs_ai ? 0 : 2,
       this.size - 2,
       this.size - 2
     );
+    
     this.board[this.size - 2][this.size - 1] = new Archer(
       vs_ai ? 0 : 2,
       this.size - 2,
@@ -365,7 +367,6 @@ change_turn() {
           }
         }
       }
-      // todo: incorporate below loops in this loop
     }
 
     // checkpoint ownership score
@@ -411,7 +412,7 @@ change_turn() {
         }
       }
     }
-    // todo: ...
+
     let score =
       hp_score +
       cost_score +
@@ -433,7 +434,7 @@ change_turn() {
     return score;
   }
 
-alpha_beta_pruning(board_copy, depth, isMaximizing, alpha = -Infinity, beta = Infinity) {
+minimax_with_pruning(board_copy, depth, isMaximizing, alpha = -Infinity, beta = Infinity) {
   if (depth === 0 || this.game_over(board_copy.board) !== -1) {
     return this.evaluate(board_copy, isMaximizing);
   }
@@ -456,7 +457,7 @@ alpha_beta_pruning(board_copy, depth, isMaximizing, alpha = -Infinity, beta = In
         newChess.board[x][y] = newChess.board[i][j];
         newChess.board[i][j] = "";
         
-        const score = this.alpha_beta_pruning(newChess, depth - 1, !isMaximizing, alpha, beta);
+        const score = this.minimax_with_pruning(newChess, depth - 1, !isMaximizing, alpha, beta);
         
         if (isMaximizing) {
           if(depth == this.max_depth && score > bestScore)
@@ -484,7 +485,7 @@ alpha_beta_pruning(board_copy, depth, isMaximizing, alpha = -Infinity, beta = In
           }
         }
         
-        const score = this.alpha_beta_pruning(newChess, depth - 1, !isMaximizing, alpha, beta);
+        const score = this.minimax_with_pruning(newChess, depth - 1, !isMaximizing, alpha, beta);
         
         if (isMaximizing) {
           if(depth == this.max_depth && score > bestScore)
@@ -509,10 +510,10 @@ alpha_beta_pruning(board_copy, depth, isMaximizing, alpha = -Infinity, beta = In
 }
 
 create_chess_copy(board) {
-    // Create deep copy of checkpoints
+    // deep copy of checkpoints
     const checkpoints_copy = this.checkpoints.map(checkpoint => [...checkpoint]);
     
-    // Create deep copy of board
+    // deep copy of board
     const board_copy = board.map((row) =>
       row.map((cell) => {
         if (cell instanceof Unit) {
@@ -526,7 +527,7 @@ create_chess_copy(board) {
       })
     );
 
-    // Create a new Chess instance for the copy
+    //  new chess instance for the copy
     const chess_copy = new Chess(this.size);
     chess_copy.board = board_copy;
     chess_copy.checkpoints = checkpoints_copy;
@@ -541,7 +542,7 @@ create_chess_copy(board) {
 
 move_ai_turn() {
   const chessCopy = this.create_chess_copy(this.board);
-  let bestMove = this.alpha_beta_pruning(chessCopy, this.max_depth, true);
+  let bestMove = this.minimax_with_pruning(chessCopy, this.max_depth, true);
   if (!bestMove) return false;
 
   const {fromX, fromY} = bestMove.from;
