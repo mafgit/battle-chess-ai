@@ -349,7 +349,7 @@ change_turn() {
 
     // score if winning position
     if (chess.game_over(chess.board) === turn) {
-      winning_score += 10000;
+      winning_score += 100000;
     }
 
     // unit health score and unit cost score
