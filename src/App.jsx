@@ -4,7 +4,7 @@ import Chess from "./Chess";
 import { Unit } from "./Units";
 
 let size = window.innerWidth > 580 ? 16 : window.innerWidth > 400 ? 12 : 10;
-const chess = new Chess(7);
+const chess = new Chess(size);
 function App() {
   const [moves, setMoves] = useState([]);
   const [attacks, setAttacks] = useState([]);
